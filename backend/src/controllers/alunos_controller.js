@@ -2,10 +2,8 @@ const pool = require('../database/db');
 
 exports.get_alunos = async (req, res) => {
 	let conn;
-
 	try {
 		const { ano_letivo } = req.query;
-
 		if (ano_letivo && isNaN(ano_letivo)) {
 			return res.status(400).json({ error: "O ano letivo deve ser um número válido" });
 		}
