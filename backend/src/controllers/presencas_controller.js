@@ -1,5 +1,33 @@
 const pool = require("../database/db");
 
+exports.get_presenca_by_id = async (req, res) => {
+	let conn;
+
+	try {
+		const { id } = req.params;
+
+		if (isNaN(id)) {
+			throw { message: "ID inválido", status: 400 };
+		}
+
+		conn = await pool.getConnection();
+		const presenca = await conn.query("SELECT * FROM presenca WHERE id_presenca = ?", [id]);
+
+		if (presenca.length === 0) {
+			throw { message: "Presença não encontrada", status: 404 };
+		}
+
+		return res.status(200).json({ presenca });
+	} catch (err) {
+		const status_code = err.status || 500;
+		if (conn) await conn.rollback();
+
+		return res.status(status_code).json({ error: err.message || "Erro interno no servidor" });
+	} finally {
+		if (conn) await conn.release();
+	}
+}
+
 exports.post_presenca = async (req, res) => {
 	let conn;
 
