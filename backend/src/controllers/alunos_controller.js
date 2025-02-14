@@ -103,13 +103,13 @@ exports.post_alunos = async (req, res) => {
 exports.get_alunos_by_id = async (req, res) => {
 	let conn;
 	try {
-		const aluno_id = parseInt(req.params.id, 10);
-		if (isNaN(alunoId)) {
+		const { id } = req.params;
+		if (isNaN(id)) {
 			return res.status(400).json({ error: "ID inválido" });
 		}
 
 		conn = await pool.getConnection();
-		const aluno = await conn.query("SELECT * FROM aluno WHERE id_aluno = ?", [aluno_id]);
+		const aluno = await conn.query("SELECT * FROM aluno WHERE id_aluno = ?", [id]);
 
 		if (aluno.length === 0) {
 			return res.status(404).json({ error: "Aluno não encontrado" });
