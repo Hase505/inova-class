@@ -30,6 +30,36 @@ exports.get_presenca_by_id = async (req, res) => {
 	}
 }
 
+exports.get_presencas_by_aula_id = async (req, res) => {
+	let conn;
+
+	try {
+		const { id_aula } = req.query;
+
+		if (isNaN(id_aula)) {
+			throw { message: "ID inválido", status: 400 };
+		}
+
+		conn = await pool.getConnection();
+
+		const presencas = await conn.query(
+			"SELECT aluno.id_aluno, aluno.nome, presenca.horario, IF(presenca.presente IS NOT NULL, TRUE, FALSE) as presente \
+			FROM aluno JOIN disciplina_aluno ON aluno.id_aluno = disciplina_aluno.id_aluno \
+			JOIN aula ON disciplina_aluno.id_disciplina = aula.id_disciplina \
+			LEFT JOIN presenca ON aluno.id_aluno = presenca.id_aluno AND presenca.id_aula = aula.id_aula \
+			WHERE aula.id_aula = ?",
+			[id_aula]
+		);
+
+		return res.status(200).json({ presencas });
+	} catch (err) {
+		const status_code = err.status || 500;
+		return res.status(status_code).json({ error: err.message || "Erro interno no servidor" });
+	} finally {
+		if (conn) await conn.release();
+	}
+}
+
 exports.put_presenca = async (req, res) => {
 	let conn;
 
@@ -159,7 +189,7 @@ exports.post_presenca = async (req, res) => {
 			throw { message: "A presença já foi registrada", status: 409 };
 		}
 
-		await conn.query("INSERT into presenca (id_aluno, id_aula, presente) VALUES (?, ?, true)", [id_aluno, id_aula]);
+		await conn.query("INSERT into presenca (id_aluno, id_aula, presente, horario) VALUES (?, ?, true, NOW())", [id_aluno, id_aula]);
 		await conn.commit();
 
 		return res.status(201).json({ message: "Presença registrada com sucesso" });

@@ -40,6 +40,35 @@ exports.get_professor_by_id = async (req, res) => {
 	}
 }
 
+exports.get_disciplina_of_professor_by_id = async (req, res) => {
+	let conn;
+	try {
+		const { id } = req.params;
+
+		if (isNaN(id)) {
+			throw { message: "ID inválido", status: 400 }
+		}
+
+		conn = await pool.getConnection();
+
+		const disciplinas = await conn.query(
+			"SELECT disciplina_professor.id_disciplina, nome, descricao \
+			FROM disciplina_professor \
+			INNER JOIN disciplina ON disciplina_professor.id_disciplina = disciplina.id_disciplina \
+			WHERE disciplina_professor.id_professor = ?",
+			[id]
+		);
+
+		return res.status(200).json(disciplinas);
+	} catch (err) {
+		const status_code = err.status || 500;
+
+		return res.status(status_code).json({ error: err.message || "Erro interno no servidor" });
+	} finally {
+		if (conn) await conn.release();
+	}
+}
+
 exports.post_professor = async (req, res) => {
 	let conn;
 	try {
@@ -54,7 +83,7 @@ exports.post_professor = async (req, res) => {
 		}
 
 		conn = await pool.getConnection();
-		conn.beginTransaction();
+		await conn.beginTransaction();
 
 		// Verificar se o usuário existe
 		const usuario = await conn.query("SELECT id_usuario from usuario WHERE id_usuario = ?", [id_usuario]);
@@ -73,13 +102,13 @@ exports.post_professor = async (req, res) => {
 		}
 
 		// Verificar se o RA já foi utilizado
-		const existent_ra = await conn.query("SELECT id_aluno FROM professor WHERE ra = ?", [ra]);
+		const existent_ra = await conn.query("SELECT id_professor FROM professor WHERE ra = ?", [ra]);
 		if (existent_ra.length > 0) {
 			throw { message: "O RA informado já está registrado no sistema", status: 409 };
 		}
 
 		// Verificar se RFID_TAG já foi utilizada
-		const existent_rfid_tag = await conn.query("SELECT id_aluno FROM professor WHERE rfid_tag = ?", [rfid_tag]);
+		const existent_rfid_tag = await conn.query("SELECT id_professor FROM professor WHERE rfid_tag = ?", [rfid_tag]);
 		if (existent_rfid_tag.length > 0) {
 			throw { message: "A tag RFID informada já está registrada no sistema", status: 409 };
 		}

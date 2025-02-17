@@ -128,17 +128,32 @@ exports.post_login_user = async (req, res) => {
 
 exports.get_me_user = async (req, res) => {
 	const token = req.headers.authorization?.split(" ")[1];
-
+	let conn;
 	try {
 		if (!token) {
 			throw { message: "Token não fornecido", status: 401 };
 		}
 
 		const usuario = jwt.verify(token, process.env.SECRET_KEY);
+		const { tipo } = usuario;
+
+		conn = await pool.getConnection();
+
+		if (tipo == "Professor") {
+			const [professor] = await conn.query("SELECT * FROM professor WHERE id_usuario = ?", [usuario.id]);
+			return res.status(200).json({ message: "Usuário validado", usuario: usuario, professor: professor || null });
+		}
+		if (tipo == "Aluno") {
+			const [aluno] = await conn.query("SELECT * FROM aluno WHERE id_usuario = ?", [usuario.id]);
+			return res.status(200).json({ message: "Usuário validado", usuario: usuario, aluno: aluno || null });
+		}
+
 		return res.status(200).json({ message: "Usuário validado", usuario: usuario });
 	} catch (err) {
-		const status_code = err.message || 401;
+		const status_code = err.status || 401;
 		return res.status(status_code).json({ error: err.message || "Token inválido ou expirado." });
+	} finally {
+		if (conn) await conn.release();
 	}
 }
 
