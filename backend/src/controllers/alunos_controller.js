@@ -166,7 +166,7 @@ exports.put_alunos = async (req, res) => {
 		}
 
 		// Verificar se RFID_TAG já foi utilizada
-		if (rfid_tag !== current_aluno.rfid_tag) {
+		if (rfid_tag != current_aluno.rfid_tag) {
 			const existent_rfid_tag = await conn.query("SELECT id_aluno FROM aluno WHERE rfid_tag = ?", [rfid_tag]);
 			if (existent_rfid_tag.length > 0) {
 				return res.status(409).json({ error: "A tag RFID informada já está registrada no sistema" });

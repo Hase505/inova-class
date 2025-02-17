@@ -101,7 +101,7 @@ exports.post_login_user = async (req, res) => {
 		conn = await pool.getConnection();
 
 		const rows = await conn.query("SELECT * FROM usuario WHERE email = ?", [email]);
-		if (!rows) {
+		if (rows.length == 0) {
 			throw { message: "Usuário ou senha inválidos", status: 401 };
 		}
 		const usuario = rows[0];
