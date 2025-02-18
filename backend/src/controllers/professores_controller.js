@@ -72,13 +72,13 @@ exports.get_disciplina_of_professor_by_id = async (req, res) => {
 exports.post_professor = async (req, res) => {
 	let conn;
 	try {
-		const { id_usuario, nome, ra, rfid_tag } = req.body;
+		const { id_usuario, nome } = req.body;
 
-		if (!id_usuario || !nome || !ra || !rfid_tag) {
+		if (!id_usuario || !nome) {
 			return res.status(400).json({ error: "Todos os campos são obrigatórios" });
 		}
 
-		if (isNaN(id_usuario) || typeof nome !== "string" || isNaN(ra) || typeof (rfid_tag) !== "string") {
+		if (isNaN(id_usuario) || typeof nome !== "string") {
 			return res.status(400).json({ error: "Dados inválidos" });
 		}
 
@@ -101,21 +101,10 @@ exports.post_professor = async (req, res) => {
 			throw { message: "O usuário já foi registrado como professor", status: 409 };
 		}
 
-		// Verificar se o RA já foi utilizado
-		const existent_ra = await conn.query("SELECT id_professor FROM professor WHERE ra = ?", [ra]);
-		if (existent_ra.length > 0) {
-			throw { message: "O RA informado já está registrado no sistema", status: 409 };
-		}
-
-		// Verificar se RFID_TAG já foi utilizada
-		const existent_rfid_tag = await conn.query("SELECT id_professor FROM professor WHERE rfid_tag = ?", [rfid_tag]);
-		if (existent_rfid_tag.length > 0) {
-			throw { message: "A tag RFID informada já está registrada no sistema", status: 409 };
-		}
 
 		await conn.query(
-			"INSERT INTO professor (id_usuario, nome, ra, rfid_tag) VALUES (?, ?, ?, ?)",
-			[id_usuario, nome, ra, rfid_tag]
+			"INSERT INTO professor (id_usuario, nome) VALUES (?, ?)",
+			[id_usuario, nome]
 		);
 
 		conn.commit();
@@ -134,12 +123,12 @@ exports.put_professor = async (req, res) => {
 	let conn;
 	try {
 		const { id } = req.params;
-		const { nome, ra, rfid_tag } = req.body;
+		const { nome } = req.body;
 
-		if (!id || !nome || !ra || !rfid_tag) {
+		if (!id || !nome) {
 			throw { message: "Todos os campos são obrigatórios", status: 400 };
 		}
-		if (isNaN(id) || typeof (nome) !== "string" || isNaN(ra) || typeof (rfid_tag) !== "string") {
+		if (isNaN(id) || typeof (nome) !== "string") {
 			throw { message: "Dados inválidos", status: 400 };
 		}
 
@@ -154,24 +143,9 @@ exports.put_professor = async (req, res) => {
 
 		const current_professor = professor[0];
 
-		// Verificar se o RA já foi utilizado
-		if (ra != current_professor.ra) {
-			const existent_ra = await conn.query("SELECT id_professor FROM professor WHERE ra = ?", [ra]);
-			if (existent_ra.length > 0) {
-				throw { message: "O RA informado já está registrada no sistema", status: 409 };
-			}
-		}
-
-		// Verificar se RFID_TAG já foi utilizada
-		if (rfid_tag != current_professor.rfid_tag) {
-			const existent_rfid_tag = await conn.query("SELECT id_professor FROM professor WHERE rfid_tag = ?", [rfid_tag]);
-			if (existent_rfid_tag.length > 0) {
-				throw { message: "A tag RFID informada já está registrada no sistema", status: 409 };
-			}
-		}
 
 		// Realizar update das informações
-		await conn.query("INSERT INTO professor (nome, ra, rfid_tag) VALUES (?, ?, ?)", [nome, ra, rfid_tag]);
+		await conn.query("INSERT INTO professor (nome) VALUES (?)", [nome]);
 		await conn.commit();
 
 		return res.status(200).json({ message: "Professor atualizado com sucesso" });
