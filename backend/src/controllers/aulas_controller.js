@@ -68,13 +68,13 @@ exports.get_aulas_by_disciplina = async (req, res) => {
 exports.post_aulas = async (req, res) => {
 	let conn;
 	try {
-		const { id_disciplina, id_sala, data, horario_inicio, horario_fim, nome_aula } = req.body;
+		const { id_disciplina, bloco, espaco, sala, data, horario_inicio, horario_fim, nome_aula } = req.body;
 
-		if (!id_disciplina || !id_sala || !data || !horario_inicio || !horario_fim || !nome_aula) {
+		if (!id_disciplina || !bloco || !espaco || !sala || !data || !horario_inicio || !horario_fim || !nome_aula) {
 			throw { message: "Todos os campos são obrigatórios", status: 400 };
 		}
 
-		if (isNaN(id_disciplina) || isNaN(id_sala) || typeof (nome_aula) !== "string") {
+		if (isNaN(id_disciplina) || isNaN(bloco) || isNaN(espaco) || isNaN(sala) || typeof (nome_aula) !== "string") {
 			throw { message: "Dados inválidos", status: 400 };
 		}
 
@@ -118,18 +118,30 @@ exports.post_aulas = async (req, res) => {
 			throw { message: "Horário de início deve ser menor que horário de fim", status: 400 };
 		}
 
+		// Verificar se os horários são iguais
+		if (data_horario_inicio_validados.getTime() === data_horario_fim_validados.getTime()) {
+			throw { message: "Horário de início deve ser diferente do horário de fim", status: 400 };
+		}
+
 		conn = await pool.getConnection();
 		await conn.beginTransaction();
 
+		// Obter id da sala a partir de bloco, espaço e sala
+		const [{ id_sala }] = await conn.query(
+			"SELECT id_sala FROM sala WHERE bloco = ? \
+			AND espaco = ? AND numero_sala = ?",
+			[bloco, espaco, sala]
+		);
+
 		// Verificar se disciplina existe
-		const disciplina = await conn.query("SELECT id_disciplina FROM disciplina WHERE id_disciplina = ?", [id_disciplina]);
-		if (disciplina.length === 0) {
+		const existent_disciplina = await conn.query("SELECT id_disciplina FROM disciplina WHERE id_disciplina = ?", [id_disciplina]);
+		if (existent_disciplina.length === 0) {
 			throw { message: "Disciplina não encontrada", status: 404 };
 		}
 
 		// Verificar se sala existe
-		const sala = await conn.query("SELECT id_sala FROM sala WHERE id_sala = ?", [id_sala]);
-		if (sala.length === 0) {
+		const existent_sala = await conn.query("SELECT id_sala FROM sala WHERE id_sala = ?", [id_sala]);
+		if (existent_sala.length === 0) {
 			throw { message: "Sala não encontrada", status: 404 };
 		}
 

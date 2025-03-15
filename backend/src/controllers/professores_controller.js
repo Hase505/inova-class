@@ -52,7 +52,7 @@ exports.get_disciplina_of_professor_by_id = async (req, res) => {
 		conn = await pool.getConnection();
 
 		const disciplinas = await conn.query(
-			"SELECT disciplina_professor.id_disciplina, nome, descricao \
+			"SELECT disciplina_professor.id_disciplina, nome, descricao, url_imagem \
 			FROM disciplina_professor \
 			INNER JOIN disciplina ON disciplina_professor.id_disciplina = disciplina.id_disciplina \
 			WHERE disciplina_professor.id_professor = ?",
