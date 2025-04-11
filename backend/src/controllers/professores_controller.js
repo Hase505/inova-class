@@ -1,52 +1,56 @@
 const pool = require('../database/db');
 
-exports.get_professores = async (req, res) => {
+exports.getProfessores = async (req, res) => {
 	let conn;
+
 	try {
 		conn = await pool.getConnection();
-		const rows = await conn.query("SELECT * FROM professor");
-		res.json(rows);
-	} catch (err) {
-		res.status(500).json({ error: err.message });
+
+		const professores = await conn.query("SELECT * FROM professor");
+
+		return res.status(200).json(professores);
+	} catch (erro) {
+		return res.status(500).json({ error: "Erro interno no servidor" });
 	} finally {
-		if (conn) conn.release();
+		if (conn) await conn.release();
 	}
 }
 
-exports.get_professor_by_id = async (req, res) => {
+exports.getProfessorById = async (req, res) => {
 	let conn;
 	try {
 		const { id } = req.params;
 
 		if (isNaN(id)) {
-			throw { message: "ID informado é inválido", status: 400 };
+			throw { mensagem: "ID informado é inválido", status: 400 };
 		}
 
 		conn = await pool.getConnection();
-		await conn.beginTransaction();
-
 
 		const professor = await conn.query("SELECT * FROM professor WHERE id_professor = ?", [id]);
-		await conn.commit();
+		if(professor.length === 0){
+			throw {mensagem: "ID não encontrado", status: 404 };
+		}
 
 		return res.status(200).json(professor);
-	} catch (err) {
-		const status_code = err.status || 500;
+	} catch (erro) {
+		const statusCode = erro.status || 500;
 		if (conn) conn.rollback();
 
-		return res.status(status_code).json({ error: err.message || "Erro interno no servidor" });
+		return res.status(statusCode).json({ error: erro.mensagem || "Erro interno no servidor" });
 	} finally {
 		if (conn) conn.release();
 	}
 }
 
-exports.get_disciplina_of_professor_by_id = async (req, res) => {
+exports.getDisciplinaOfProfessorById = async (req, res) => {
 	let conn;
+
 	try {
 		const { id } = req.params;
 
 		if (isNaN(id)) {
-			throw { message: "ID inválido", status: 400 }
+			throw { mensagem: "ID inválido", status: 400 }
 		}
 
 		conn = await pool.getConnection();
@@ -60,25 +64,25 @@ exports.get_disciplina_of_professor_by_id = async (req, res) => {
 		);
 
 		return res.status(200).json(disciplinas);
-	} catch (err) {
-		const status_code = err.status || 500;
-
-		return res.status(status_code).json({ error: err.message || "Erro interno no servidor" });
+	} catch (erro) {
+		const statusCode = erro.status || 500;
+		return res.status(statusCode).json({ error: erro.mensagem || "Erro interno no servidor" });
 	} finally {
 		if (conn) await conn.release();
 	}
 }
 
-exports.post_professor = async (req, res) => {
+exports.postProfessor = async (req, res) => {
 	let conn;
-	try {
-		const { id_usuario, nome } = req.body;
 
-		if (!id_usuario || !nome) {
+	try {
+		const { id_usuario: idUsuario, nome } = req.body;
+
+		if (!idUsuario || !nome) {
 			return res.status(400).json({ error: "Todos os campos são obrigatórios" });
 		}
 
-		if (isNaN(id_usuario) || typeof nome !== "string") {
+		if (isNaN(idUsuario) || typeof nome !== "string") {
 			return res.status(400).json({ error: "Dados inválidos" });
 		}
 
@@ -86,50 +90,50 @@ exports.post_professor = async (req, res) => {
 		await conn.beginTransaction();
 
 		// Verificar se o usuário existe
-		const usuario = await conn.query("SELECT id_usuario from usuario WHERE id_usuario = ?", [id_usuario]);
+		const usuario = await conn.query("SELECT id_usuario from usuario WHERE id_usuario = ?", [idUsuario]);
 		if (usuario.length === 0) {
-			throw { message: "O usuário não existe", status: 404 };
+			throw { mensagem: "O usuário não existe", status: 404 };
 		}
 
 		// Verificar se o usuário já foi cadastrado
-		const existent_usuario_aluno = await conn.query("SELECT id_usuario FROM aluno WHERE id_usuario = ?", [id_usuario]);
-		if (existent_usuario_aluno.length > 0) {
-			throw { message: "O usuário já foi registrado como aluno", status: 409 };
+		const usuarioAlunoExiste = await conn.query("SELECT id_usuario FROM aluno WHERE id_usuario = ?", [idUsuario]);
+		if (usuarioAlunoExiste.length > 0) {
+			throw { mensagem: "O usuário já foi registrado como aluno", status: 409 };
 		}
-		const existent_usuario_professor = await conn.query("SELECT id_usuario FROM professor WHERE id_usuario = ?", [id_usuario]);
-		if (existent_usuario_professor.length > 0) {
-			throw { message: "O usuário já foi registrado como professor", status: 409 };
+		const usuarioProfessorExiste = await conn.query("SELECT id_usuario FROM professor WHERE id_usuario = ?", [idUsuario]);
+		if (usuarioProfessorExiste.length > 0) {
+			throw { mensagem: "O usuário já foi registrado como professor", status: 409 };
 		}
-
 
 		await conn.query(
 			"INSERT INTO professor (id_usuario, nome) VALUES (?, ?)",
-			[id_usuario, nome]
+			[idUsuario, nome]
 		);
 
-		conn.commit();
-		res.status(201).json({ message: "Professor cadastrado com sucesso" });
-	} catch (err) {
-		if (conn) conn.rollback();
+		await conn.commit();
+		return res.status(201).json({ mensagem: "Professor cadastrado com sucesso" });
+	} catch (erro) {
+		if (conn) await conn.rollback();
 
-		const status_code = err.status || 500;
-		res.status(status_code).json({ error: err.message || "Erro interno no servidor" });
+		const statusCode = erro.status || 500;
+		res.status(statusCode).json({ error: erro.mensagem || "Erro interno no servidor" });
 	} finally {
 		if (conn) conn.release();
 	}
 }
 
-exports.put_professor = async (req, res) => {
+exports.putProfessor = async (req, res) => {
 	let conn;
+
 	try {
 		const { id } = req.params;
 		const { nome } = req.body;
 
 		if (!id || !nome) {
-			throw { message: "Todos os campos são obrigatórios", status: 400 };
+			throw { mensagem: "Todos os campos são obrigatórios", status: 400 };
 		}
 		if (isNaN(id) || typeof (nome) !== "string") {
-			throw { message: "Dados inválidos", status: 400 };
+			throw { mensagem: "Dados inválidos", status: 400 };
 		}
 
 		conn = await pool.getConnection();
@@ -138,60 +142,58 @@ exports.put_professor = async (req, res) => {
 		// Verificar se o professor existe
 		const professor = await conn.query("SELECT * FROM professor WHERE id_professor = ?", [id]);
 		if (professor.length === 0) {
-			throw { message: "Professor não encontrado", status: 404 };
+			throw { mensagem: "Professor não encontrado", status: 404 };
 		}
-
-		const current_professor = professor[0];
-
 
 		// Realizar update das informações
 		await conn.query("INSERT INTO professor (nome) VALUES (?)", [nome]);
 		await conn.commit();
 
-		return res.status(200).json({ message: "Professor atualizado com sucesso" });
-	} catch (err) {
-		const status_code = err.status;
-		if (conn) conn.rollback();
+		return res.status(200).json({ mensagem: "Professor atualizado com sucesso" });
+	} catch (erro) {
+		const statusCode = erro.status;
+		if (conn) await conn.rollback();
 
-		return res.status(status_code).json({ error: err.message });
+		return res.status(statusCode).json({ error: erro.mensagem });
 	} finally {
-		if (conn) conn.release();
+		if (conn) await conn.release();
 	}
 }
 
-exports.delete_professor = async (req, res) => {
+exports.deleteProfessor = async (req, res) => {
 	let conn;
 	try {
 		const { id } = req.params;
 
 		if (!id) {
-			throw { message: "O ID é obrigatório", status: 400 };
+			throw { mensagem: "O ID é obrigatório", status: 400 };
 		}
 		if (isNaN(id)) {
-			throw { message: "O ID precisa ser um número", status: 400 };
+			throw { mensagem: "O ID precisa ser um número", status: 400 };
 		}
 
 		conn = await pool.getConnection();
-		conn.beginTransaction();
+		await conn.beginTransaction();
 
 		// Verificar se o professor existe
-		const existent_professor = await conn.query("SELECT id_professor FROM professor WHERE id_professor = ?", [id]);
-		if (existent_professor.length === 0) {
-			throw { message: "Professor não encontrado", status: 404 };
+		const idProfessorExiste = await conn.query("SELECT id_professor FROM professor WHERE id_professor = ?", [id]);
+		if (idProfessorExiste.length === 0) {
+			throw { mensagem: "Professor não encontrado", status: 404 };
 		}
 
 		// Deletar professor
 		await conn.query("DELETE FROM professor WHERE id_professor = ?", [id]);
-		conn.commit();
+		await conn.commit();
 
-		return res.status(200).json({ message: "Professor deletado com sucesso" });
-	} catch (err) {
-		const status_code = err.status || 500;
-		if (conn) conn.rollback();
-
-		return res.status(status_code).json({ error: err.message });
+		return res.status(200).json({ mensagem: "Professor deletado com sucesso" });
+	} catch (erro) {
+		if (conn) await conn.rollback();
+		
+		const statusCode = erro.status || 500;
+		return res.status(statusCode).json({ error: erro.mensagem });
 	} finally {
-		if (conn) conn.release();
+		if (conn) await conn.release();
 	}
 }
+
 module.exports = { ...exports };

@@ -3,112 +3,108 @@ const pool = require('../database/db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
-exports.get_usuarios = async (req, res) => {
+exports.getUsuarios = async (req, res) => {
 	let conn;
+
 	try {
 		conn = await pool.getConnection();
-		await conn.beginTransaction();
 
 		const usuarios = await conn.query("SELECT * FROM usuario");
-		await conn.commit();
 
-		res.status(200).json({ usuarios });
-	} catch (err) {
-		if (conn) await conn.rollback();
+		return res.status(200).json(usuarios);
+	} catch (erro) {
 		res.status(500).json({ error: "Erro interno no servidor" });
 	} finally {
 		if (conn) await conn.release();
 	}
 }
 
-exports.post_usuario = async (req, res) => {
+exports.postUsuario = async (req, res) => {
 	let conn;
+
 	try {
 		const { email, senha, tipo } = req.body;
 		const salt_rounds = 10;
 
 		if (!email || !senha || !tipo) {
-			throw { message: "Todos os campos são obrigatórios", status: 400 };
+			throw { mensagem: "Todos os campos são obrigatórios", status: 400 };
 		}
 		if (typeof (email) !== "string" || typeof (senha) !== "string" || typeof (tipo) !== "string") {
-			throw { message: "Dados inválidos", status: 400 };
+			throw { mensagem: "Dados inválidos", status: 400 };
 		}
 		if (!(tipo === "Professor" || tipo === "Aluno")) {
-			throw { message: "Tipo de usuário inválido", status: 400 };
+			throw { mensagem: "Tipo de usuário inválido", status: 400 };
 		}
 
 		conn = await pool.getConnection();
 		await conn.beginTransaction();
 
 		// Verificar se o email já foi utilizado
-		const existent_email = await conn.query("SELECT email FROM usuario WHERE email = ?", [email]);
-		if (existent_email.length > 0) {
-			throw { message: "Email já foi cadastrado", status: 409 };
+		const emailExiste = await conn.query("SELECT email FROM usuario WHERE email = ?", [email]);
+		if (emailExiste.length > 0) {
+			throw { mensagem: "Email já foi cadastrado", status: 409 };
 		}
 
 		// Gerar hash da senha
-		const hash_senha = await bcrypt.hash(senha, salt_rounds);
+		const hashSenha = await bcrypt.hash(senha, salt_rounds);
 
-		await conn.query("INSERT INTO usuario (email, hash_senha, tipo) VALUES (?, ?, ?)", [email, hash_senha, tipo]);
+		await conn.query("INSERT INTO usuario (email, hash_senha, tipo) VALUES (?, ?, ?)", [email, hashSenha, tipo]);
 		await conn.commit();
 
-		return res.status(201).json({ message: "Usuário registrado com sucesso" });
-	} catch (err) {
-		if (conn) conn.rollback();
-		const status_code = err.status || 500;
+		return res.status(201).json({ mensagem: "Usuário registrado com sucesso" });
+	} catch (erro) {
+		if (conn) await conn.rollback();
 
-		return res.status(status_code).json({ error: err.message });
+		const statusCode = erro.status || 500;
+		return res.status(statusCode).json({ error: erro.mensagem });
 	} finally {
-		if (conn) conn.release();
+		if (conn) await conn.release();
 	}
 }
 
-exports.get_usuario_by_id = async (req, res) => {
+exports.getUsuarioById = async (req, res) => {
 	let conn;
+
 	try {
 		const { id } = req.params;
 
 		if (isNaN(id)) {
-			throw { message: "ID inválido", status: 400 };
+			throw { mensagem: "ID inválido", status: 400 };
 		}
 
 		conn = await pool.getConnection();
-		await conn.beginTransaction();
-
 		const usuario = await conn.query("SELECT * FROM usuario WHERE id_usuario = ?", [id]);
-		await conn.commit();
 
-		res.status(200).json({ usuario });
-	} catch (err) {
-		const status_code = err.status || 500;
-		if (conn) conn.rollback();
-
-		return res.status(status_code).json({ error: err.message || "Erro interno no servidor" });
+		return res.status(200).json(usuario);
+	} catch (erro) {
+		const statusCode = erro.status || 500;
+		return res.status(statusCode).json({ error: erro.mensagem || "Erro interno no servidor" });
 	} finally {
-		if (conn) conn.release();
+		if (conn) await conn.release();
 	}
 }
 
-exports.post_login_user = async (req, res) => {
+exports.postLogin = async (req, res) => {
 	let conn;
+
 	try {
 		const { email, senha } = req.body;
 
 		if (!email || !senha) {
-			throw { message: "Todos os campos são obrigatórios", status: 400 };
+			throw { mensagem: "Todos os campos são obrigatórios", status: 400 };
 		}
 
 		conn = await pool.getConnection();
 
-		const rows = await conn.query("SELECT * FROM usuario WHERE email = ?", [email]);
-		if (rows.length == 0) {
-			throw { message: "Usuário ou senha inválidos", status: 401 };
+		const usuarios = await conn.query("SELECT * FROM usuario WHERE email = ?", [email]);
+		if (usuarios.length == 0) {
+			throw { mensagem: "Usuário ou senha inválidos", status: 401 };
 		}
-		const usuario = rows[0];
+		const usuario = usuarios[0];
 
-		const correct_creds = await bcrypt.compare(senha, usuario.hash_senha);
-		if (!correct_creds) {
-			throw { message: "Usuário ou senha inválidos", status: 401 };
+		const credenciaisCorretas = await bcrypt.compare(senha, usuario.hash_senha);
+		if (!credenciaisCorretas) {
+			throw { mensagem: "Usuário ou senha inválidos", status: 401 };
 		}
 
 		const token = jwt.sign(
@@ -117,21 +113,22 @@ exports.post_login_user = async (req, res) => {
 			{ expiresIn: "1h" }
 		);
 
-		return res.status(200).json({ message: "Usuário validado com sucesso", token });
-	} catch (err) {
-		const status_code = err.status || 500;
-		return res.status(status_code).json({ error: err.message || "Erro interno no servidor" });
+		return res.status(200).json({ mensagem: "Usuário validado com sucesso", token });
+	} catch (erro) {
+		const statusCode = erro.status || 500;
+		return res.status(statusCode).json({ error: erro.mensagem || "Erro interno no servidor" });
 	} finally {
-		if (conn) conn.release();
+		if (conn) await conn.release();
 	}
 }
 
-exports.get_me_user = async (req, res) => {
+exports.getValidateMe = async (req, res) => {
 	const token = req.headers.authorization?.split(" ")[1];
 	let conn;
+
 	try {
 		if (!token) {
-			throw { message: "Token não fornecido", status: 401 };
+			throw { mensagem: "Token não fornecido", status: 401 };
 		}
 
 		const usuario = jwt.verify(token, process.env.SECRET_KEY);
@@ -141,17 +138,17 @@ exports.get_me_user = async (req, res) => {
 
 		if (tipo == "Professor") {
 			const [professor] = await conn.query("SELECT * FROM professor WHERE id_usuario = ?", [usuario.id]);
-			return res.status(200).json({ message: "Usuário validado", usuario: usuario, professor: professor || null });
+			return res.status(200).json({ mensagem: "Usuário validado", usuario: usuario, professor: professor || null });
 		}
 		if (tipo == "Aluno") {
 			const [aluno] = await conn.query("SELECT * FROM aluno WHERE id_usuario = ?", [usuario.id]);
-			return res.status(200).json({ message: "Usuário validado", usuario: usuario, aluno: aluno || null });
+			return res.status(200).json({ mensagem: "Usuário validado", usuario: usuario, aluno: aluno || null });
 		}
 
-		return res.status(200).json({ message: "Usuário validado", usuario: usuario });
-	} catch (err) {
-		const status_code = err.status || 401;
-		return res.status(status_code).json({ error: err.message || "Token inválido ou expirado." });
+		return res.status(200).json({ mensagem: "Usuário validado", usuario: usuario });
+	} catch (erro) {
+		const statusCode = erro.status || 401;
+		return res.status(statusCode).json({ error: erro.mensagem || "Token inválido ou expirado." });
 	} finally {
 		if (conn) await conn.release();
 	}

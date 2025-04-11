@@ -1,43 +1,43 @@
 const pool = require("../database/db");
 
-exports.get_presenca_by_id = async (req, res) => {
+exports.getPresencaById = async (req, res) => {
 	let conn;
 
 	try {
 		const { id } = req.params;
 
 		if (isNaN(id)) {
-			throw { message: "ID inválido", status: 400 };
+			throw { mensagem: "ID inválido", status: 400 };
 		}
 
 		conn = await pool.getConnection();
-		conn.beginTransaction();
+		await conn.beginTransaction();
 
 		const presenca = await conn.query("SELECT * FROM presenca WHERE id_presenca = ?", [id]);
 
 		if (presenca.length === 0) {
-			throw { message: "Presença não encontrada", status: 404 };
+			throw { mensagem: "Presença não encontrada", status: 404 };
 		}
 
 		return res.status(200).json({ presenca });
-	} catch (err) {
-		const status_code = err.status || 500;
+	} catch (erro) {
+		const statusCode = erro.status || 500;
 		if (conn) await conn.rollback();
 
-		return res.status(status_code).json({ error: err.message || "Erro interno no servidor" });
+		return res.status(statusCode).json({ error: erro.mensagem || "Erro interno no servidor" });
 	} finally {
 		if (conn) await conn.release();
 	}
 }
 
-exports.get_presencas_by_aula_id = async (req, res) => {
+exports.getPresencasByAulaId = async (req, res) => {
 	let conn;
 
 	try {
-		const { id_aula } = req.query;
+		const { id_aula: idAula } = req.query;
 
-		if (isNaN(id_aula)) {
-			throw { message: "ID inválido", status: 400 };
+		if (isNaN(idAula)) {
+			throw { mensagem: "ID inválido", status: 400 };
 		}
 
 		conn = await pool.getConnection();
@@ -48,158 +48,158 @@ exports.get_presencas_by_aula_id = async (req, res) => {
 			JOIN aula ON disciplina_aluno.id_disciplina = aula.id_disciplina \
 			LEFT JOIN presenca ON aluno.id_aluno = presenca.id_aluno AND presenca.id_aula = aula.id_aula \
 			WHERE aula.id_aula = ?",
-			[id_aula]
+			[idAula]
 		);
 
 		return res.status(200).json({ presencas });
-	} catch (err) {
-		const status_code = err.status || 500;
-		return res.status(status_code).json({ error: err.message || "Erro interno no servidor" });
+	} catch (erro) {
+		const statusCode = erro.status || 500;
+		return res.status(statusCode).json({ error: erro.mensagem || "Erro interno no servidor" });
 	} finally {
 		if (conn) await conn.release();
 	}
 }
 
-exports.put_presenca = async (req, res) => {
+exports.putPresenca = async (req, res) => {
 	let conn;
 
 	try {
 		const { id } = req.params;
-		const { id_aluno, id_aula, presente } = req.body;
+		const { id_aluno: idAluno, id_aula: idAula, presente } = req.body;
 
-		if (!id || !id_aluno || !id_aula || !presente) {
-			throw { message: "Todos os campos são obrigatórios", status: 400 };
+		if (!id || !idAluno || !idAula || !presente) {
+			throw { mensagem: "Todos os campos são obrigatórios", status: 400 };
 		}
 
-		if (isNaN(id) || isNaN(id_aluno) || isNaN(id_aula) || isNaN(presente) || presente !== 0 || presente !== 1) {
-			throw { message: "Dados inválidos", status: 400 };
+		if (isNaN(id) || isNaN(idAluno) || isNaN(idAula) || isNaN(presente) || presente !== 0 || presente !== 1) {
+			throw { mensagem: "Dados inválidos", status: 400 };
 		}
 
 		conn = await pool.getConnection();
 		await conn.beginTransaction();
 
 		// Verificar se a presença existe
-		const existent_id_presenca = await conn.query("SELECT id_presenca FROM presenca WHERE id_presenca = ?", [id]);
-		if (existent_id_presenca.length === 0) {
-			throw { message: "A presença informada não existe", status: 404 };
+		const idPresencaExiste = await conn.query("SELECT id_presenca FROM presenca WHERE id_presenca = ?", [id]);
+		if (idPresencaExiste.length === 0) {
+			throw { mensagem: "A presença informada não existe", status: 404 };
 		}
 
 		// Verificar se id_aluno existe
-		const existent_id_aluno = await conn.query("SELECT id_aluno FROM aluno WHERE id_aluno = ?", [id_aluno]);
-		if (existent_id_aluno.length === 0) {
-			throw { message: "O aluno informado não existe", status: 404 };
+		const idAlunoExiste = await conn.query("SELECT id_aluno FROM aluno WHERE id_aluno = ?", [idAluno]);
+		if (idAlunoExiste.length === 0) {
+			throw { mensagem: "O aluno informado não existe", status: 404 };
 		}
 
 		// Verificar se id_aula existe
-		const existent_id_aula = await conn.query("SELECT id_aula FROM aula WHERE id_aula = ?", [id_aula]);
-		if (existent_id_aula.length === 0) {
-			throw { message: "A aula informada não existe", status: 404 };
+		const idAulaExiste = await conn.query("SELECT id_aula FROM aula WHERE id_aula = ?", [idAula]);
+		if (idAulaExiste.length === 0) {
+			throw { mensagem: "A aula informada não existe", status: 404 };
 		}
 
-		await conn.query("INSERT INTO presenca (id_aluno, id_aula, presenca) VALUES (?, ?, ?)", [id_aluno, id_aula, presente]);
+		await conn.query("INSERT INTO presenca (id_aluno, id_aula, presenca) VALUES (?, ?, ?)", [idAluno, idAula, presente]);
 
-		conn.commit();
-		res.status(201).json({ message: "Presença atualizada com sucesso" });
-	} catch (err) {
-		const status_code = err.status || 500;
+		await conn.commit();
+		return res.status(201).json({ mensagem: "Presença atualizada com sucesso" });
+	} catch (erro) {
+		const statusCode = erro.status || 500;
 		if (conn) await conn.rollback();
 
-		return res.status(status_code).json({ error: err.message });
+		return res.status(statusCode).json({ error: erro.mensagem });
 	} finally {
-		if (conn) conn.release();
+		if (conn) await conn.release();
 	}
 }
 
-exports.delete_presenca = async (req, res) => {
+exports.deletePresenca = async (req, res) => {
 	let conn;
 
 	try {
 		const { id } = req.params;
 
 		if (!id) {
-			throw { message: "O ID é obrigatório", status: 400 };
+			throw { mensagem: "O ID é obrigatório", status: 400 };
 		}
 		if (isNaN(id)) {
-			throw { message: "O ID precisa ser um número", status: 400 };
+			throw { mensagem: "O ID precisa ser um número", status: 400 };
 		}
 
 		conn = await pool.getConnection();
 		await conn.beginTransaction();
 
 		// Verificar se a presença existe
-		const existent_id_presenca = await conn.query("SELECT id_presenca FROM presenca WHERE id_presenca = ?", [id]);
-		if (existent_id_presenca.length === 0) {
-			throw { message: "A presença informada não existe", status: 404 };
+		const idPresencaExiste = await conn.query("SELECT id_presenca FROM presenca WHERE id_presenca = ?", [id]);
+		if (idPresencaExiste.length === 0) {
+			throw { mensagem: "A presença informada não existe", status: 404 };
 		}
 
 		await conn.query("DELETE FROM presenca WHERE id_presenca = ?", [id]);
 
 		await conn.commit();
-		return res.status(200).json({ message: "Presença deletada com sucesso" });
-	} catch (err) {
-		const status_code = err.status || 500;
-		if (conn) conn.rollback();
+		return res.status(200).json({ mensagem: "Presença deletada com sucesso" });
+	} catch (erro) {
+		const statusCode = erro.status || 500;
+		if (conn) await conn.rollback();
 
-		return res.status(status_code).json({ error: err.message });
+		return res.status(statusCode).json({ error: erro.mensagem });
 	} finally {
-		if (conn) conn.release();
+		if (conn) await conn.release();
 	}
 }
 
-exports.post_presenca = async (req, res) => {
+exports.postPresenca = async (req, res) => {
 	let conn;
 
 	try {
-		const { rfid_tag, id_sala } = req.body;
+		const { rfid_tag: rfidTag, id_sala: idSala } = req.body;
 
 		// Verifica se os valores informados são válidos
-		if (!rfid_tag || !id_sala) {
-			return res.status(400).json({ error: "Todos os valores são obrigatórios" });
+		if (!rfidTag || !idSala) {
+			throw { mensagem: "Todos os valores são obrigatórios", status: 400 };
 		}
-		if (typeof (rfid_tag) !== "string" || isNaN(id_sala)) {
-			return res.status(400).json({ error: "Os dados são inválidos" });
+		if (typeof (rfidTag) !== "string" || isNaN(idSala)) {
+			throw { mensagem: "Os dados são inválidos", status: 400 };
 		}
 
 		conn = await pool.getConnection();
 		await conn.beginTransaction();
 
 		// Verifica se a tag informada está associada a algum aluno
-		const aluno = await conn.query("SELECT id_aluno FROM aluno WHERE rfid_tag = ?", [rfid_tag]);
+		const aluno = await conn.query("SELECT id_aluno FROM aluno WHERE rfid_tag = ?", [rfidTag]);
 		if (aluno.length === 0) {
-			throw { message: "RFID não encontrado", status: 404 };
+			throw { mensagem: "RFID não encontrado", status: 404 };
 		}
-		const { id_aluno } = aluno[0];
+		const { id_aluno: idAluno } = aluno[0];
 
 		// Verifica se há alguma aula ocorrendo na sala informada no horário e dia atuais
-		const aula = await conn.query("SELECT id_aula, id_disciplina FROM aula WHERE id_sala = ? AND NOW() BETWEEN inicio and fim LIMIT 1", [id_sala]);
+		const aula = await conn.query("SELECT id_aula, id_disciplina FROM aula WHERE id_sala = ? AND NOW() BETWEEN inicio and fim LIMIT 1", [idSala]);
 		if (aula.length === 0) {
-			throw { message: "Nenhuma aula está ocorrendo nesta sala", status: 404 };
+			throw { mensagem: "Nenhuma aula está ocorrendo nesta sala", status: 404 };
 		}
-		const { id_aula, id_disciplina } = aula[0];
+		const { id_aula: idAula, id_disciplina: idDisciplina } = aula[0];
 
 		// Verifica se o aluno pertence à disciplina
-		const disciplina_aluno = await conn.query("SELECT id_disciplina_aluno FROM disciplina_aluno WHERE id_aluno = ? AND id_disciplina = ?", [id_aluno, id_disciplina]);
-		if (disciplina_aluno.length === 0) {
-			throw { message: "O aluno não pertence a disciplina", status: 403 };
+		const disciplinaAluno = await conn.query("SELECT id_disciplina_aluno FROM disciplina_aluno WHERE id_aluno = ? AND id_disciplina = ?", [idAluno, idDisciplina]);
+		if (disciplinaAluno.length === 0) {
+			throw { mensagem: "O aluno não pertence a disciplina", status: 403 };
 		}
 
 		// Verifica se a presença já foi registrada
-		const presenca = await conn.query("SELECT id_presenca FROM presenca WHERE id_aluno = ? AND id_aula = ?", [id_aluno, id_aula]);
+		const presenca = await conn.query("SELECT id_presenca FROM presenca WHERE id_aluno = ? AND id_aula = ?", [idAluno, idAula]);
 		if (presenca.length > 0) {
-			throw { message: "A presença já foi registrada", status: 409 };
+			throw { mensagem: "A presença já foi registrada", status: 409 };
 		}
 
-		await conn.query("INSERT into presenca (id_aluno, id_aula, presente, horario) VALUES (?, ?, true, NOW())", [id_aluno, id_aula]);
+		await conn.query("INSERT into presenca (id_aluno, id_aula, presente, horario) VALUES (?, ?, true, NOW())", [idAluno, idAula]);
 		await conn.commit();
 
-		return res.status(201).json({ message: "Presença registrada com sucesso" });
+		return res.status(201).json({ mensagem: "Presença registrada com sucesso" });
 	} catch (err) {
 		await conn.rollback();
-		const status_code = err.status || 500;
+		const statusCode = err.status || 500;
 
-		return res.status(status_code).json({ error: err.message || "Erro interno no servidor" });
+		return res.status(statusCode).json({ error: err.mensagem || "Erro interno no servidor" });
 	} finally {
-		if (conn) conn.release;
+		if (conn) await conn.release;
 	}
 }
 
