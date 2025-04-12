@@ -228,4 +228,170 @@ exports.getAlunosByDisciplinaId = async (req, res) => {
   }
 }
 
+exports.postDisciplinaProfessor = async (req, res) => {
+  let conn;
+
+  try {
+    const { id } = req.params;
+    const { professor_id: professorId } = req.body;
+
+    if (isNaN(id)) {
+      throw { mensagem: "ID inválido", status: 400 };
+    }
+    // Verificar se todos os campos obrigatórios foram preenchidos
+    if (!professorId) {
+      throw { mensagem: "Todos os campos são obrigatórios", status: 400 };
+    }
+
+    // Verificar se os dados são válidos
+    if (isNaN(professorId)) {
+      throw { mensagem: "Dados inválidos", status: 400 };
+    }
+    conn = await pool.getConnection();
+    await conn.beginTransaction();
+
+    const disciplinaExiste = await conn.query("SELECT 1 FROM disciplina WHERE disciplina_id = ?", [id]);
+    if (disciplinaExiste.length === 0) {
+      throw { mensagem: "Disciplina não encontrada", status: 404 };
+    }
+
+    const professorExiste = await conn.query("SELECT 1 FROM professor WHERE professor_id = ?", [professorId]);
+    if (professorExiste.length === 0) {
+      throw { mensagem: "Professor não encontrado", status: 404 };
+    }
+
+    const disciplinaProfessor = await conn.query("SELECT 1 FROM disciplina_professor WHERE disciplina_id = ? AND professor_id = ?", [id, professorId]);
+    if (disciplinaProfessor.length > 0) {
+      throw { mensagem: "Relação já existe", status: 409 };
+    }
+
+    await conn.query(
+      "INSERT INTO disciplina_professor (disciplina_id, professor_id) VALUES (?, ?)",
+      [id, professorId]
+    );
+    await conn.commit();
+
+    return res.status(201).json({ mensagem: "Relação criada com sucesso" });
+  } catch (erro) {
+    const statusCode = erro.status || 500;
+    return res.status(statusCode).json({ error: erro.mensagem || "Erro interno no servidor" });
+  }
+  finally {
+    if (conn) conn.release();
+  }
+}
+
+exports.deleteDisciplinaProfessor = async (req, res) => {
+  let conn;
+
+  try {
+    const { id: idDisciplina, idProfessor } = req.params;
+
+    if (isNaN(idDisciplina) || isNaN(idProfessor)) {
+      throw { mensagem: "ID inválido", status: 400 };
+    }
+
+    conn = await pool.getConnection();
+    await conn.beginTransaction();
+
+    const disciplinaProfessor = await conn.query("SELECT 1 FROM disciplina_professor WHERE disciplina_id = ? AND professor_id = ?", [idDisciplina, idProfessor]);
+    if (disciplinaProfessor.length === 0) {
+      throw { mensagem: "Relação não encontrada", status: 404 };
+    }
+
+    await conn.query("DELETE FROM disciplina_professor WHERE disciplina_id = ? AND professor_id = ?", [idDisciplina, idProfessor]);
+    await conn.commit();
+
+    return res.status(200).json({ mensagem: "Relação excluída com sucesso" });
+  } catch (erro) {
+    const statusCode = erro.status || 500;
+    return res.status(statusCode).json({ error: erro.mensagem || "Erro interno no servidor" });
+  } finally {
+    if (conn) conn.release();
+  }
+}
+
+exports.postDisciplinaAluno = async (req, res) => {
+  let conn;
+
+  try {
+    const { id } = req.params;
+    const { aluno_id: alunoId } = req.body;
+
+    if (isNaN(id)) {
+      throw { mensagem: "ID inválido", status: 400 };
+    }
+    // Verificar se todos os campos obrigatórios foram preenchidos
+    if (!alunoId) {
+      throw { mensagem: "Todos os campos são obrigatórios", status: 400 };
+    }
+
+    // Verificar se os dados são válidos
+    if (isNaN(alunoId)) {
+      throw { mensagem: "Dados inválidos", status: 400 };
+    }
+    conn = await pool.getConnection();
+    await conn.beginTransaction();
+
+    const disciplinaExiste = await conn.query("SELECT 1 FROM disciplina WHERE disciplina_id = ?", [id]);
+    if (disciplinaExiste.length === 0) {
+      throw { mensagem: "Disciplina não encontrada", status: 404 };
+    }
+
+    const alunoExiste = await conn.query("SELECT 1 FROM aluno WHERE aluno_id = ?", [alunoId]);
+    if (alunoExiste.length === 0) {
+      throw { mensagem: "Aluno não encontrado", status: 404 };
+    }
+
+    const disciplinaAluno = await conn.query("SELECT 1 FROM disciplina_aluno WHERE disciplina_id = ? AND aluno_id = ?", [id, alunoId]);
+    if (disciplinaAluno.length > 0) {
+      throw { mensagem: "Relação já existe", status: 409 };
+    }
+
+    await conn.query(
+      "INSERT INTO disciplina_aluno (disciplina_id, aluno_id) VALUES (?, ?)",
+      [id, alunoId]
+    );
+    await conn.commit();
+
+    return res.status(201).json({ mensagem: "Relação criada com sucesso" });
+  } catch (erro) {
+    const statusCode = erro.status || 500;
+    return res.status(statusCode).json({ error: erro.mensagem || "Erro interno no servidor" });
+  }
+  finally {
+    if (conn) conn.release();
+  }
+}
+
+exports.deleteDisciplinaAluno = async (req, res) => {
+  let conn;
+
+  try {
+    const { id: idDisciplina, idAluno } = req.params;
+
+    if (isNaN(idDisciplina) || isNaN(idAluno)) {
+      throw { mensagem: "ID inválido", status: 400 };
+    }
+
+    conn = await pool.getConnection();
+    await conn.beginTransaction();
+
+    const disciplinaAluno = await conn.query("SELECT 1 FROM disciplina_aluno WHERE disciplina_id = ? AND aluno_id = ?", [idDisciplina, idAluno]);
+    if (disciplinaAluno.length === 0) {
+      throw { mensagem: "Relação não encontrada", status: 404 };
+    }
+
+    await conn.query("DELETE FROM disciplina_aluno WHERE disciplina_id = ? AND aluno_id = ?", [idDisciplina, idAluno]);
+    await conn.commit();
+
+    return res.status(200).json({ mensagem: "Relação excluída com sucesso" });
+  } catch (erro) {
+    const statusCode = erro.status || 500;
+    return res.status(statusCode).json({ error: erro.mensagem || "Erro interno no servidor" });
+  } finally {
+    if (conn) conn.release();
+  }
+}
+
 module.exports = { ...exports };
