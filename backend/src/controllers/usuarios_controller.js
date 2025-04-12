@@ -84,6 +84,72 @@ exports.getUsuarioById = async (req, res) => {
 	}
 }
 
+exports.putUsuario = async (req, res) => {
+	let conn;
+
+	try{
+		const { id } = req.params;
+		const { email, senha, tipo } = req.body;
+
+		if (isNaN(id)) {
+			throw { mensagem: "ID inválido", status: 400 };
+		}
+		if (!email || !senha || !tipo) {
+			throw { mensagem: "Todos os campos são obrigatórios", status: 400 };
+		}
+		if (typeof (email) !== "string" || typeof (senha) !== "string" || typeof (tipo) !== "string") {
+			throw { mensagem: "Dados inválidos", status: 400 };
+		}
+		if (!(tipo === "Professor" || tipo === "Aluno")) {
+			throw { mensagem: "Tipo de usuário inválido", status: 400 };
+		}
+
+		conn = await pool.getConnection();
+		await conn.beginTransaction();
+
+		const hashSenha = await bcrypt.hash(senha, 10);
+
+		await conn.query("UPDATE usuario SET email = ?, hash_senha = ?, tipo = ? WHERE id_usuario = ?", [email, hashSenha, tipo, id]);
+		await conn.commit();
+
+		return res.status(200).json({ mensagem: "Usuário atualizado com sucesso" });
+	} catch (erro) {
+		if (conn) await conn.rollback();
+
+		const statusCode = erro.status || 500;
+		return res.status(statusCode).json({ error: erro.mensagem });
+	} finally {
+		if (conn) await conn.release();
+	}
+}
+
+exports.deleteUsuario = async (req, res) => {
+	let conn;
+
+	try {
+		const { id } = req.params;
+
+		if (isNaN(id)) {
+			throw { mensagem: "ID inválido", status: 400 };
+		}
+
+		conn = await pool.getConnection();
+		await conn.beginTransaction();
+
+		await conn.query("DELETE FROM usuario WHERE id_usuario = ?", [id]);
+		await conn.commit();
+
+		return res.status(200).json({ mensagem: "Usuário deletado com sucesso" });
+	} catch (erro) {
+		if (conn) await conn.rollback();
+
+		const statusCode = erro.status || 500;
+		return res.status(statusCode).json({ error: erro.mensagem });
+	} finally {
+		if (conn) await conn.release();
+	}
+}
+	
 exports.postLogin = async (req, res) => {
 	let conn;
 
@@ -153,5 +219,51 @@ exports.getValidateMe = async (req, res) => {
 		if (conn) await conn.release();
 	}
 }
+
+exports.getProfessorByUsuarioId = async (req, res) => {
+	let conn;
+
+	try {
+		const { id } = req.params;
+
+		if (isNaN(id)) {
+			throw { mensagem: "ID inválido", status: 400 };
+		}
+
+		conn = await pool.getConnection();
+		const professor = await conn.query("SELECT * FROM professor WHERE id_usuario = ?", [id]);
+
+		return res.status(200).json(professor);
+	} catch (erro) {
+		const statusCode = erro.status || 500;
+		return res.status(statusCode).json({ error: erro.mensagem || "Erro interno no servidor" });
+	} finally {
+		if (conn) await conn.release();
+	}
+}
+
+exports.getAlunoByUsuarioId = async (req, res) => {
+	let conn;
+
+	try {
+		const { id } = req.params;
+
+		if (isNaN(id)) {
+			throw { mensagem: "ID inválido", status: 400 };
+		}
+
+		conn = await pool.getConnection();
+		const aluno = await conn.query("SELECT * FROM aluno WHERE id_usuario = ?", [id]);
+
+		return res.status(200).json(aluno);
+	} catch (erro) {
+		const statusCode = erro.status || 500;
+		return res.status(statusCode).json({ error: erro.mensagem || "Erro interno no servidor" });
+	} finally {
+		if (conn) await conn.release();
+	}
+}
+
+
 
 module.exports = { ...exports };
