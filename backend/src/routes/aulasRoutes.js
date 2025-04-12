@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const aulasController = require('../controllers/aulas_controller');
+const aulasController = require('../controllers/aulasController');
 
 router.get('/:id', aulasController.getAulasById);
 router.put('/:id', aulasController.putAulas);
