@@ -1,0 +1,26 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "API Rest destinada a registro de presenças de alunos.",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Hase505/inova-class.git"
+  },
+  "author": "InovaClass",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Hase505/inova-class/issues"
+  },
+  "homepage": "https://github.com/Hase505/inova-class#readme",
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "mariadb": "^3.4.0"
+  }
+}
